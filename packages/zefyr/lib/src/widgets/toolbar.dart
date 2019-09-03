@@ -267,18 +267,16 @@ class ZefyrToolbarState extends State<ZefyrToolbar>
   }
 
   void _pickFromCamera() async {
-    final editor = ZefyrToolbar.of(context).editor;
-    final image =
-        await editor.imageDelegate.pickImage(editor.imageDelegate.cameraSource);
-    if (image != null)
+    final image = await editor.imageDelegate.pickImage(editor.imageDelegate.cameraSource);
+    if (image != null) {
       editor.formatSelection(NotusAttribute.embed.image(image));
+    }
   }
   void _pickFromGallery() async {
-    final editor = ZefyrToolbar.of(context).editor;
-    final image = await editor.imageDelegate
-        .pickImage(editor.imageDelegate.gallerySource);
-    if (image != null)
+    final image = await editor.imageDelegate.pickImage(editor.imageDelegate.gallerySource);
+    if (image != null) {
       editor.formatSelection(NotusAttribute.embed.image(image));
+    }
   }
 }
 

@@ -6,7 +6,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:notus/notus.dart';
-
 import 'buttons.dart';
 import 'scope.dart';
 import 'theme.dart';
@@ -259,9 +258,27 @@ class ZefyrToolbarState extends State<ZefyrToolbar>
       buildButton(context, ZefyrToolbarAction.quote),
       buildButton(context, ZefyrToolbarAction.code),
       buildButton(context, ZefyrToolbarAction.horizontalRule),
-      if (editor.imageDelegate != null) ImageButton(),
+      buildButton(context, ZefyrToolbarAction.cameraImage,
+            onPressed: _pickFromCamera),
+      buildButton(context, ZefyrToolbarAction.galleryImage,
+            onPressed: _pickFromGallery),
     ];
     return buttons;
+  }
+
+  void _pickFromCamera() async {
+    final editor = ZefyrToolbar.of(context).editor;
+    final image =
+        await editor.imageDelegate.pickImage(editor.imageDelegate.cameraSource);
+    if (image != null)
+      editor.formatSelection(NotusAttribute.embed.image(image));
+  }
+  void _pickFromGallery() async {
+    final editor = ZefyrToolbar.of(context).editor;
+    final image = await editor.imageDelegate
+        .pickImage(editor.imageDelegate.gallerySource);
+    if (image != null)
+      editor.formatSelection(NotusAttribute.embed.image(image));
   }
 }
 

@@ -8,7 +8,7 @@ import 'package:notus/notus.dart';
 import 'package:quill_delta/quill_delta.dart';
 import 'package:zefyr/util.dart';
 
-const TextSelection _kZeroSelection = const TextSelection.collapsed(
+const TextSelection _kZeroSelection = TextSelection.collapsed(
   offset: 0,
   affinity: TextAffinity.upstream,
 );
@@ -44,18 +44,24 @@ class ZefyrController extends ChangeNotifier {
   /// Source of the last text or selection change.
   ChangeSource get lastChangeSource => _lastChangeSource;
 
+  /// Store any styles attribute that got toggled by the tap of a button
+  /// and that has not been applied yet.
+  /// It gets reseted after each format action within the [document].
+  NotusStyle get toggledStyles => _toggledStyles;
+  NotusStyle _toggledStyles = new NotusStyle();
+
   /// Updates selection with specified [value].
   ///
   /// [value] and [source] cannot be `null`.
   void updateSelection(TextSelection value,
-      {ChangeSource source: ChangeSource.remote}) {
+      {ChangeSource source = ChangeSource.remote}) {
     _updateSelectionSilent(value, source: source);
     notifyListeners();
   }
 
   // Updates selection without triggering notifications to listeners.
   void _updateSelectionSilent(TextSelection value,
-      {ChangeSource source: ChangeSource.remote}) {
+      {ChangeSource source = ChangeSource.remote}) {
     assert(value != null && source != null);
     _selection = value;
     _lastChangeSource = source;
@@ -76,7 +82,7 @@ class ZefyrController extends ChangeNotifier {
   ///
   /// If composing this change fails then this method throws [ComposeError].
   void compose(Delta change,
-      {TextSelection selection, ChangeSource source: ChangeSource.remote}) {
+      {TextSelection selection, ChangeSource source = ChangeSource.remote}) {
     if (change.isNotEmpty) {
       _document.compose(change, source);
     }
@@ -104,6 +110,9 @@ class ZefyrController extends ChangeNotifier {
   /// Resulting change is registered as produced by user action, e.g.
   /// using [ChangeSource.local].
   ///
+  /// It also applies the toggledStyle if needed. And then it resets it
+  /// in any cases as we don't want to keep it except on inserts.
+  ///
   /// Optionally updates selection if provided.
   void replaceText(int index, int length, String text,
       {TextSelection selection}) {
@@ -111,7 +120,22 @@ class ZefyrController extends ChangeNotifier {
 
     if (length > 0 || text.isNotEmpty) {
       delta = document.replace(index, length, text);
+      // If the delta is a classical insert operation and we have toggled
+      // some style, then we apply it to our document.
+      if (delta != null &&
+          toggledStyles.isNotEmpty &&
+          delta.length == 2 &&
+          delta[1].isInsert) {
+        // Apply it.
+        Delta retainDelta = new Delta()
+          ..retain(index)
+          ..retain(1, toggledStyles.toJson());
+        document.compose(retainDelta, ChangeSource.local);
+      }
     }
+
+    // Always reset it after any user action, even if it has not been applied.
+    _toggledStyles = new NotusStyle();
 
     if (selection != null) {
       if (delta == null) {
@@ -140,6 +164,14 @@ class ZefyrController extends ChangeNotifier {
   void formatText(int index, int length, NotusAttribute attribute) {
     final change = document.format(index, length, attribute);
     _lastChangeSource = ChangeSource.local;
+
+    if (length == 0 &&
+        (attribute.key == NotusAttribute.bold.key ||
+            attribute.key == NotusAttribute.italic.key)) {
+      // Add the attribute to our toggledStyle. It will be used later upon insertion.
+      _toggledStyles = toggledStyles.put(attribute);
+    }
+
     // Transform selection against the composed change and give priority to
     // the change. This is needed in cases when format operation actually
     // inserts data into the document (e.g. embeds).
@@ -160,10 +192,18 @@ class ZefyrController extends ChangeNotifier {
     formatText(index, length, attribute);
   }
 
+  /// Returns style of specified text range.
+  ///
+  /// If nothing is selected but we've toggled an attribute,
+  ///  we also merge those in our style before returning.
   NotusStyle getSelectionStyle() {
     int start = _selection.start;
     int length = _selection.end - start;
-    return _document.collectStyle(start, length);
+    var lineStyle = _document.collectStyle(start, length);
+
+    lineStyle = lineStyle.mergeAll(toggledStyles);
+
+    return lineStyle;
   }
 
   TextEditingValue get plainTextEditingValue {

@@ -109,7 +109,7 @@ class _ZefyrSelectionOverlayState extends State<ZefyrSelectionOverlay>
     _toolbarController?.stop();
   }
 
-  static const Duration _kFadeDuration = const Duration(milliseconds: 150);
+  static const Duration _kFadeDuration = Duration(milliseconds: 150);
 
   @override
   void initState() {
@@ -432,7 +432,7 @@ class _SelectionHandleDriverState extends State<SelectionHandleDriver>
     // Make sure the GestureDetector is big enough to be easily interactive.
     final Rect interactiveRect = handleRect.expandToInclude(
       Rect.fromCircle(
-          center: handleRect.center, radius: kMinInteractiveSize / 2),
+          center: handleRect.center, radius: kMinInteractiveDimension / 2),
     );
     final RelativeRect padding = RelativeRect.fromLTRB(
       math.max((interactiveRect.width - handleRect.width) / 2, 0),
